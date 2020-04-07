@@ -39,15 +39,15 @@ my$finalprofileref = recursive_random(\@instances);
 
 sub recursive_random{
 	my@instances = @{shift @_};
-	
+
 	my$oldtotal = check_solution(\@instances);
-	
+
 	for my$j (0 .. $#instances){
-	
+
 		my$leftout = int(rand($#instances));
-		
+
 		print "Leaving out sequence ".$leftout." : ".$instances[$leftout]."\n";
-		
+
 		my@traininstances;
 		foreach my$i (0 .. $#instances){
 			if($i == $leftout){
@@ -58,24 +58,24 @@ sub recursive_random{
 
 		my$profileref = create_profile(\@traininstances);
 		my%profile = %{$profileref};
-	
-		my@leftseqs; 
+
+		my@leftseqs;
 		push(@leftseqs,$seqs[$leftout]);
 		my$newinstref = get_best_matches(\@leftseqs,\%profile,$motiflength);
 		my@new_instances = @{$newinstref};
-		
+
 		print "New best instance:\n";
 		foreach my$i (0 .. $#new_instances){
 			print $new_instances[$i]."\n\n";
 			$instances[$leftout] = $new_instances[$i];
 		}
-	
+
 	}
-	
+
 	my$total = check_solution(\@instances);
 	my$profileref = create_profile(\@instances);
 	my%profile = %{$profileref};
-	
+
 	print "New solution: ".$total."\n";
 	print "New profile:\n";
 	my@nts = ('A','C','G','T');
@@ -88,7 +88,7 @@ sub recursive_random{
 		print "\n";
 	}
 	print "\n\n";
-	
+
 	if($total < $oldtotal){
 		$profileref = recursive_random(\@instances);
 	} else {
@@ -104,18 +104,19 @@ sub recursive_random{
 		}
 		print "\n\n";
 	}
-	
-	
+
+
 	return $profileref;
 
 }
 
 sub check_solution{
 	my@instances = @{shift @_};
-	
+
+
 	my$profileref = create_profile(\@instances);
 	my%profile = %{$profileref};
-	
+
 	my@old_scores;
 	foreach my$instance (@instances){
 		push(@old_scores,score_profile($instance,\%profile));
@@ -124,14 +125,14 @@ sub check_solution{
 	foreach my$score (@old_scores){
 		$oldtotal += $score;
 	}
-	
+
 	return $oldtotal;
 }
 
 sub read_fsa{
 	my$file = shift @_;
 	my@seqs;
-	
+
 	my$i = -1;
 	open(FSA, $file) or die "Cannot open ".$file."\n";
 	while(<FSA>){
@@ -142,32 +143,32 @@ sub read_fsa{
 		}
 	}
 	close FSA;
-	
+
 	return \@seqs;
-	
+
 }
 
 sub get_random_instances{
 	my@seqs = @{shift @_};
 	my$motiflength = shift @_;
-	
+
 	my@instances;
 	foreach my$seq (@seqs) {
 		my$pos = int(rand(length($seq)-$motiflength));
 		push(@instances,substr($seq,$pos,$motiflength))
 	}
-	
+
 	return \@instances;
 }
 
 sub create_profile{
 	my@instances = @{shift @_};
-	
+
 	my$profilelength = length($instances[0]);
-	
+
 	my$pseudocount = 1;
 	my@nts = ('A','C','G','T');
-	
+
 	my%profile;
 	for my$i (0 .. $profilelength-1){
 		foreach my$nt (@nts){
@@ -176,6 +177,7 @@ sub create_profile{
 		}
 		foreach my$seq (@instances){
 			$profile{$i}{substr($seq,$i,1)}++;
+			my$temp=substr($seq,$i,1);
 			$profile{$i}{'all'}++;
 		}
 		foreach my$nt (@nts){
@@ -183,22 +185,22 @@ sub create_profile{
 			$profile{$i}{$nt} = int($profile{$i}{$nt}*100)/100
 		}
 	}
-	
+
 	return \%profile;
-	
+
 }
 
 sub score_profile{
 	my$seq = shift @_;
 	my%profile = %{shift @_};
-	
+
 	my$score=0;
-	
 	my@seqpos = split("",$seq);
+
 	for my$i (0 .. $#seqpos){
 		$score += $profile{$i}{$seqpos[$i]};
 	}
-	
+
 	return $score;
 }
 
@@ -206,7 +208,7 @@ sub get_best_matches{
 	my@seqs = @{shift @_};
 	my$profileref = shift @_;
 	my$motiflength = shift @_;
-	
+
 	my@best_matches;
 	foreach my$seq (@seqs){
 		my$bestscore = 999;
@@ -214,7 +216,7 @@ sub get_best_matches{
 		for my$i (0 .. length($seq)-1-$motiflength){
 			my$dnaseq = substr($seq,$i,$motiflength);
 			my$score = score_profile($dnaseq,$profileref);
-			
+
 			if($score < $bestscore){
 				$bestscore = $score;
 				$bestmatch = $dnaseq;
@@ -222,6 +224,6 @@ sub get_best_matches{
 		}
 		push(@best_matches,$bestmatch);
 	}
-	
+
 	return \@best_matches;
 }
