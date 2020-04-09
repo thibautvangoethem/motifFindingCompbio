@@ -34,8 +34,8 @@ def create_profile(instances):
     pseudocount = 1
     instance_dict = {}
     for i in range(len(instances[0])):
-        instance_dict[i]["all"] = 0
         instance_dict[i] = {}
+        instance_dict[i]["all"] = 0
         for nucleotide in nucleotides:
             instance_dict[i][nucleotide] = pseudocount
             instance_dict[i]["all"] += 1
