@@ -33,20 +33,18 @@ def main(filename, motiflength):
 def create_profile(instances):
     pseudocount = 1
     instance_dict = {}
-    for idx, instance in enumerate(instances):
-        instance_dict[idx] = {}
+    for i in range(len(instances[0])):
+        instance_dict[i] = {}
         for nucleotide in nucleotides:
-            # First we initalize 1 for all nucleatodie and make an all counter
-            instance_dict[idx][nucleotide] = pseudocount
-            instance_dict[idx]["all"] = pseudocount
-        for nucleotide in instance:
-            # we count the amount of a nucleotide in the sequance
-            instance_dict[idx][nucleotide] += 1
-            instance_dict[idx]["all"] += 1
+            instance_dict[i][nucleotide] = pseudocount
+            instance_dict[i]["all"] = pseudocount
+        for seq in instances:
+            instance_dict[i][seq[i]] += 1
+            instance_dict[i]["all"] += 1
         for nucleotide in nucleotides:
             # We make a weighted calculation to get the profile numbers
-            instance_dict[idx][nucleotide] = -math.log(instance_dict[idx][nucleotide] / instance_dict[idx]["all"]);
-            instance_dict[idx][nucleotide] = int(instance_dict[idx][nucleotide] * 100) / 100
+            instance_dict[i][nucleotide] = -math.log(instance_dict[i][nucleotide] / instance_dict[i]["all"]);
+            instance_dict[i][nucleotide] = int(instance_dict[i][nucleotide] * 100) / 100
     return instance_dict
 
 
@@ -88,16 +86,15 @@ def recursive_random(instances, motiflength, sequences):
     else:
         pass
         # Here something strange is done in the perl script (with the scalar(@instances) and i do not know what it means
-        # print("Final profile")
-        # for nucleotide in nucleotides:
-        #     print(nucleotide + "\t\t", end='')
-        #     for i in range(motiflength):
-        #         pass
-        #         # this special print syntax is to allign the printing
-        #
-        #         print("{:>12} \t".format(str(int(math.exp(-profile[i][nucleotide],2))*((instances)+4))), end='')
-        #     # print a newline
-        #     print("")
+        """print("Final profile")
+        for nucleotide in nucleotides:
+            print(nucleotide + "\t\t", end='')
+            for i in range(motiflength):
+                # this special print syntax is to allign the printing
+                print(str(int(math.exp(-profile[i][nucleotide]))))
+                print("{:>12} \t".format(str(int(math.exp(-profile[i][nucleotide]))*((instances)+4))), end='')
+            # print a newline
+            print("")"""
 
 def get_best_matches(leftseq, profile, motif_length):
     best_matches = list()
