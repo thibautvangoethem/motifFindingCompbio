@@ -33,11 +33,12 @@ def main(filename, motiflength):
 def create_profile(instances):
     pseudocount = 1
     instance_dict = {}
+    instance_dict[i]["all"] = 0
     for i in range(len(instances[0])):
         instance_dict[i] = {}
         for nucleotide in nucleotides:
             instance_dict[i][nucleotide] = pseudocount
-            instance_dict[i]["all"] = pseudocount
+            instance_dict[i]["all"] += 1
         for seq in instances:
             instance_dict[i][seq[i]] += 1
             instance_dict[i]["all"] += 1
