@@ -23,8 +23,9 @@ def main(filename, motiflength):
     prof = create_pssm(motif)
     print(prof)
     motif = recursive_random(instanceref, motiflength, records)
-    print("Creating results.png")
-    motif.weblogo("results.png")
+    print("Creating results.pdf")
+    motif.weblogo("results.pdf", format="pdf", show_errorbars=False,
+        show_ends=False, color_scheme="color_classic")
 
 
 def create_pssm(instances):
