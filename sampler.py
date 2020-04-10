@@ -105,13 +105,6 @@ def check_solution(instances):
     return sum(old_scores)
 
 
-def score_profile(seq, profile):
-    score = 0
-    for idx, nucleotide in enumerate(seq):
-        score += profile[idx][nucleotide]
-    return score
-
-
 def get_random_instances(records, motiflength):
     instances = motifs.Instances()
     for record in records:
