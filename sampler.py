@@ -75,7 +75,7 @@ def recursive_random(instances, motiflength, records):
 
 
 def print_pseudo(motif):
-    counts = motif.counts
+    counts = copy.deepcopy(motif.counts)
     for nct in nucleotides:
         tup = []
         for i in range(len(counts[nct])):
