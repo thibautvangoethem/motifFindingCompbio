@@ -12,7 +12,7 @@ random.seed()
 pallindromic = ["-p", "--pallindrome"]
 
 
-def main(filename, motiflength, pallindrome=False):
+def main(filename, motiflength, pallindrome=None):
     # read in file
     records = list(SeqIO.parse(filename, "fasta"))
     # creat random instances of given motif size
@@ -111,7 +111,7 @@ def check_solution(instances):
     return sum(old_scores)
 
 
-def get_random_instances(records, motiflength, pallindrome=False):
+def get_random_instances(records, motiflength, pallindrome=None):
     instances = motifs.Instances()
     for record in records:
         if pallindrome:
@@ -120,7 +120,7 @@ def get_random_instances(records, motiflength, pallindrome=False):
                 pos = random.randint(0, len(record.seq) - motiflength)
                 seq = record.seq[pos:pos + motiflength]
                 rev_compl = seq.reverse_complement()
-                if SequenceMatcher(None, seq, rev_compl).ratio() > 0.7:
+                if SequenceMatcher(None, seq, rev_compl).ratio() > pallindrome:
                     instances.append(seq)
                     found = True
         else:
@@ -129,25 +129,28 @@ def get_random_instances(records, motiflength, pallindrome=False):
             instances.append(seq)
     return instances
 
+def usage():
+    print("usage: sampler.py [option] [filename] [motiflength]")
+    print("Options:")
+    print("\t -p [float] --pallindrome [float]\n\t\tTry to find pallindromic motif with ratio higher as [float]")
+    exit(0)
 
 if __name__ == "__main__":
     filename = ""
     motiflength = 0
     pal = False
     if len(sys.argv) < 3:
-        print("usage: sampler.py [option] [filename] [motiflength]")
-        print("\t -p\t --pallindrome\t Try to find pallindromic motif")
+        usage()
     else:
         try:
-            if len(sys.argv) == 4:
+            if len(sys.argv) > 3:
                 if sys.argv[1] in pallindromic:
-                    pal = True
-                    filename = sys.argv[2]
-                    motiflength = int(sys.argv[3])
+                    pal = float(sys.argv[2])
+                    filename = sys.argv[3]
+                    motiflength = int(sys.argv[4])
             else:
                 filename = sys.argv[1]
                 motiflength = int(sys.argv[2])
-        except:
-            print("usage: sampler.py [option] [filename] [motiflength]")
-            print("\t -p\t --pallindrome\t Try to find pallindromic motif")
+        except Exception as e:
+            usage()
     main(filename, motiflength, pallindrome=pal)
