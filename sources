@@ -1,0 +1,5 @@
+motifs sampling with gpas algorithm:
+https://dl.acm.org/doi/pdf/10.1145/279069.279119
+
+expansion on gapped motifs to make it more efficient(possibly not implemented in our project)
+https://link.springer.com/chapter/10.1007/3-540-45123-4_28
