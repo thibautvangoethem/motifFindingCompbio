@@ -1,40 +1,55 @@
+
 import sys
-import random
+
 from Bio import SeqIO, motifs, Seq
 from Bio.motifs import thresholds, matrix
 import math
 import random
 import copy
 
+
+from Bio.SeqRecord import SeqRecord
+
 nucleotides = ['A', 'C', 'G', 'T']
 random.seed()
 
 
 def main(filename, motiflength):
-    # read in file
-    records = list(SeqIO.parse(filename, "fasta"))
-    # creat random instances of given motif size
-    instanceref = get_random_instances(records, motiflength)
-    print("found %d sequences" % len(instanceref))
-    print("Got random instances:")
-    motif = motifs.create(instanceref)
-    print(motif)
-    print("Starting profile")
-    prof = create_pssm(motif)
-    print(prof)
-    motif = recursive_random(instanceref, motiflength, records)
-    print("Creating results.pdf")
-    motif.weblogo("results.pdf", format="pdf", show_errorbars=False,
-        show_ends=False, color_scheme="color_classic")
+    for i in range(10): #Voer alles 10 keer uit
+        # read in file
+        records = list(SeqIO.parse(filename, "fasta"))
+        # creat random instances of given motif size
+
+        instanceref = get_random_instances(records, motiflength)
+        print("found %d sequences" % len(instanceref))
+        print("Got random instances:")
+        motif = motifs.create(instanceref)
+        print(motif)
+        print("Starting profile")
+        prof = create_pssm(motif)
+        print(prof)
+        motif = recursive_random(instanceref, motiflength, records)
+        print("Creating results.pdf")
+        motif.weblogo("results"+str(i)+".pdf", format="pdf", show_errorbars=False,
+            show_ends=False, color_scheme="color_classic") #Elke pdf heeft een andere naam
+
+
+
 
 
 def create_pssm(instances):
     profile = instances.counts.normalize(pseudocounts=1)
+    Backgroundvector=background(filename) #Creert een vector met de relatieve frequentie van elke letter
+
+    dumj=0 # Ik weet niet hoe ik anders over Backgroundvector moet lopen :/
     for nct in nucleotides:
         tup = []
         for i in range(len(profile[nct])):
-            tup.append(-math.log(profile[nct][i]))
+            # Deel door het relevante gewicht van backgroundvector, als er meer A's zijn delen we door een getal groter dan 1
+            #Hierdoor daalt het gewicht van een A.
+            tup.append(-math.log((profile[nct][i])/Backgroundvector[dumj]))
         profile[nct] = tuple(tup)
+        dumj=dumj+1
     return matrix.PositionSpecificScoringMatrix(alphabet=nucleotides,values=profile)
 
 
@@ -83,6 +98,7 @@ def print_pseudo(motif):
         counts[nct] = tuple(tup)
     print(counts)
 
+
 def get_best_matches(leftseq, profile, motif_length):
     best_matches = list()
     for seq in leftseq:
@@ -114,9 +130,63 @@ def get_random_instances(records, motiflength):
     return instances
 
 
+#Een functie die zelf een motief genereert in een achtergrond
+def create_control_data(Stringlength=70,Motif='TATTAA',amountofstrings=8,Errorpercentage=0):
+    Recordlist = amountofstrings * [0] #Een lijst met seqrecord objecten
+
+    Motif = list(Motif) #Makkelijker te manipuleren dan strings
+
+
+    for i in range(len(Recordlist)):
+        Background = round(Stringlength / 4) * ['A', 'C', 'G', 'T'] #Homogene verdeling
+        random.shuffle(Background) #Randomiseer
+        Background = Background[0:Stringlength] #Zorgt ervoor dat niet alle strings 4*n lang moeten zijn
+        beginpoint = random.randint(0, Stringlength - len(Motif)) #Willekeurige locatie voor het begin van het motief
+        Motif_mutated = Motif
+        if random.random() < Errorpercentage / 100 * 1.25:  # Kan muteren naar dezelfde letter daarom 25 % meer kans dan aangegeven
+
+            Motif_mutated[random.randint(0, len(Motif) - 1)] = random.choice(nucleotides)  # Kan muteren naar dezelfde letter
+
+        Promotor = Background[0:beginpoint] + Motif_mutated + Background[beginpoint + len(Motif):] #Het hele stuk DNA
+
+        Promotorstr = ''.join(Promotor) #Als string ipv list voor seq.seq functie
+
+        Recordlist[i] = SeqRecord(Seq.Seq(Promotorstr), id='Fake' + str(i), description='Part of test data ') #Creert een SeqRecord object
+
+    with open("Controledata.fsa", "w") as output_handle:
+        SeqIO.write(Recordlist, output_handle, "fasta") #Schrijft alles naar een FASTA File
+    return Recordlist
+
+
+def background(filename):
+    records = list(SeqIO.parse(filename, "fasta"))
+    Totalsequence = Seq.Seq('')
+
+    for recseq in records:
+        Sequence = recseq.seq
+        Totalsequence += Sequence #Neemt alle sequenties samen
+
+    Backgroundfrequency = []
+    for letter in nucleotides:
+        Backgroundfrequency.append(Totalsequence.count(letter) / len(Totalsequence)) #Berekent de frequentie
+
+
+    factor_vector = []
+    for Freq in Backgroundfrequency:
+        factor_vector.append(Freq / min(Backgroundfrequency)) #Berekent de relatieve frequentie
+
+    return factor_vector
+
 if __name__ == "__main__":
-    filename = ""
-    motiflength = 0
+    Controldata = create_control_data(150, 'TATTAACCA', 15,0)
+
+    for i in range(len(Controldata)):
+        print(Controldata[i].seq) #Geeft alle gebruikte strings weer
+
+    filename = "Controledata.fsa"
+
+    motiflength = 9
+
     if len(sys.argv) != 3:
         print("usage: sampler.py [filename] [motiflength]")
     else:
@@ -125,4 +195,9 @@ if __name__ == "__main__":
             motiflength = int(sys.argv[2])
         except:
             print("usage: sampler.py [filename] [motiflength]")
+
     main(filename, motiflength)
+
+
+
+
