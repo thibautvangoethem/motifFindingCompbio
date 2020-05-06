@@ -10,13 +10,15 @@ nucleotides = ['A', 'C', 'G', 'T']
 random.seed()
 
 gapList={}
+gapSize=0
+maxGapsize=0
 
 
-def main(filename, motiflength,gapsize):
+def main(filename, motiflength):
     # read in file
     records = list(SeqIO.parse(filename, "fasta"))
     # creat random instances of given motif size
-    instanceref = get_random_instances(records, motiflength,gapsize)
+    instanceref = get_random_instances(records, motiflength)
     print("found %d sequences" % len(instanceref))
     print("Got random instances:")
     motif = motifs.create(instanceref)
@@ -24,7 +26,7 @@ def main(filename, motiflength,gapsize):
     print("Starting profile")
     prof = create_pssm(motif)
     print(prof)
-    motif = recursive_random(instanceref, motiflength, records,gapsize)
+    motif = recursive_random(instanceref, motiflength, records)
     print("Creating results.pdf")
     motif.weblogo("results.pdf", format="pdf", show_errorbars=False,
         show_ends=False, color_scheme="color_classic")
@@ -40,7 +42,8 @@ def create_pssm(instances):
     return matrix.PositionSpecificScoringMatrix(alphabet=nucleotides,values=profile)
 
 
-def recursive_random(instances, motiflength, records,gapsize):
+def recursive_random(instances, motiflength, records):
+    global gapSize
     old_total = check_solution(instances)
 
     for idx, instance in enumerate(instances):
@@ -57,12 +60,13 @@ def recursive_random(instances, motiflength, records,gapsize):
         profile = create_pssm(train_motifs)
 
         leftseqs = [records[seq_index]]
-        new_instances = get_best_matches(leftseqs, profile, motiflength,gapsize,seq_index)
+        new_instances = get_best_matches(leftseqs, profile, motiflength,seq_index)
         print("new best instance:")
         for new_instance in new_instances:
             if(gapList[seq_index]==0 or gapList[seq_index]==8):
                 print(new_instance)
             else:
+                print("gapsize: "+str(gapSize))
                 print((new_instance[0:gapList[seq_index]]+"-"+new_instance[gapList[seq_index]:]))
             instances[seq_index] = new_instance
     # printing the result from this iteration
@@ -73,12 +77,13 @@ def recursive_random(instances, motiflength, records,gapsize):
     print(profile)
     #     Check if there is no regression, if not continue the recursion else stop the program
     if total < old_total:
-        return recursive_random(instances,motiflength,records,gapsize)
+        return recursive_random(instances,motiflength,records)
     else:
         motif = motifs.create(instances)
         print("Finale Profile")
         print_pseudo(motif)
         print("Consensus sequence")
+        print("gapsize: " + str(gapSize))
         print(motif.consensus)
         return motif
 
@@ -92,22 +97,40 @@ def print_pseudo(motif):
         counts[nct] = tuple(tup)
     print(counts)
 
-def get_best_matches(leftseq, profile, motif_length,gapsize,idx):
-    best_matches = list()
-    for seq in leftseq:
-        best_score = 999
-        best_match = ""
-        for i in range(len(seq) - 1 - motif_length-gapsize):
-            for j in range(1,motif_length-2):
-                # dnaseq = Seq.Seq(str(seq.seq)[i:i + motif_length]+)
-                dnaseq = Seq.Seq(str(seq.seq)[i:i + j]+str(seq.seq)[i+j+gapsize:i+motif_length+gapsize])
-                score = profile.calculate(dnaseq)
-                if (score < best_score):
-                    best_score = score
-                    best_match = dnaseq
-                    gapList[idx]=j
-        best_matches.append(best_match)
-    return best_matches
+def get_best_matches(leftseq, profile, motif_length,idx):
+    global gapSize
+    global gapList
+    best_matches_scores=list()
+    inner_Gaplist=copy.deepcopy(gapList)
+    # We loop over all the possible gapsizes to search for the one with the best total_score
+    for loop_gapsize in range(maxGapsize+1):
+        total_score=0
+        best_matches = list()
+        # Loop over all sequences and get the best match
+        for seq in leftseq:
+            best_score = 999
+            best_match = ""
+            # Loop over all motifs in the sequence
+            for i in range(len(seq) - 1 - motif_length-loop_gapsize):
+                for j in range(1,motif_length-2):
+                    # This long line is for getting a sequence with a given gap in it
+                    dnaseq = Seq.Seq(str(seq.seq)[i:i + j]+str(seq.seq)[i+j+loop_gapsize:i+motif_length+loop_gapsize])
+                    score = profile.calculate(dnaseq)
+                    if (score < best_score):
+                        best_score = score
+                        inner_Gaplist[idx]=j
+                        best_match = (dnaseq)
+            best_matches.append(best_match)
+            total_score+=best_score
+        best_matches_scores.append((total_score,best_matches,copy.deepcopy(inner_Gaplist)))
+    best= best_matches_scores[0]
+    # get the best gap size sequence
+    for idx,match in enumerate(best_matches_scores):
+        if(match[0]<best[0]):
+            best=match
+            gapSize=idx
+    gapList=best[2]
+    return best[1]
 
 
 def check_solution(instances):
@@ -117,18 +140,20 @@ def check_solution(instances):
         old_scores.append(pssm.calculate(instance))
     return sum(old_scores)
 
-
-def get_random_instances(records, motiflength,gapsize):
+def get_random_instances(records, motiflength):
+    # get a random gapsize to start, the gap will be refined after multiple iterations of the algorithm
+    global gapSize
+    gapSize=random.randint(0,maxGapsize+1)
     instances = motifs.Instances()
     for idx,record in enumerate(records):
-        pos = random.randint(0, len(record.seq) - (motiflength+gapsize))
+        pos = random.randint(0, len(record.seq) - (motiflength+gapSize))
         gappos=random.randint(0,motiflength)
         seq=None
-        if(pos+gappos+gapsize-pos+motiflength+gapsize>0):
-            seq=record.seq[pos:pos + gappos]+record.seq[pos+gappos+gapsize:pos+motiflength+gapsize]
+        if(pos+gappos+gapSize-pos+motiflength+gapSize>0):
+            seq=record.seq[pos:pos + gappos]+record.seq[pos+gappos+gapSize:pos+motiflength+gapSize]
         else:
             if(gappos==0):
-                seq=record.seq[pos + gappos + gapsize:pos + motiflength + gapsize]
+                seq=record.seq[pos + gappos + gapSize:pos + motiflength + gapSize]
             else:
                 seq = record.seq[pos:pos + gappos]
         instances.append(seq)
@@ -139,7 +164,6 @@ def get_random_instances(records, motiflength,gapsize):
 if __name__ == "__main__":
     filename = ""
     motiflength = 0
-    gapsize=0
     if len(sys.argv) < 2:
         print("usage: sampler.py [filename] [motiflength]")
     else:
@@ -149,8 +173,8 @@ if __name__ == "__main__":
             for idx,arg in enumerate(sys.argv[3:]):
                 if(arg=="--gap"):
                     # + 4 as we start counting at idx 3 and need current index + 1
-                    gapsize=int(sys.argv[idx+4])
+                    maxGapsize=int(sys.argv[idx+4])
 
         except:
             print("usage: sampler.py [filename] [motiflength]")
-    main(filename, motiflength,gapsize)
+    main(filename, motiflength)
