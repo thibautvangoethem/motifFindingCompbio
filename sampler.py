@@ -171,7 +171,7 @@ if __name__ == "__main__":
             filename = sys.argv[1]
             motiflength = int(sys.argv[2])
             for idx,arg in enumerate(sys.argv[3:]):
-                if(arg=="--gap"):
+                if(arg=="--maxgap"):
                     # + 4 as we start counting at idx 3 and need current index + 1
                     maxGapsize=int(sys.argv[idx+4])
 
