@@ -2,21 +2,21 @@ import sys
 import random
 from Bio import SeqIO, motifs, Seq
 from Bio.motifs import thresholds, matrix
-from difflib import SequenceMatcher
+from jellyfish import jaro_distance
 import math
 import random
 import copy
 
 nucleotides = ['A', 'C', 'G', 'T']
 random.seed()
-pallindromic = ["-p", "--pallindrome"]
+palindromic = ["-p", "--palindrome"]
 
 
-def main(filename, motiflength, pallindrome=None):
+def main(filename, motiflength, palindrome=None):
     # read in file
     records = list(SeqIO.parse(filename, "fasta"))
     # creat random instances of given motif size
-    instanceref = get_random_instances(records, motiflength, pallindrome)
+    instanceref = get_random_instances(records, motiflength, palindrome)
     print("found %d sequences" % len(instanceref))
     print("Got random instances:")
     motif = motifs.create(instanceref)
@@ -24,7 +24,7 @@ def main(filename, motiflength, pallindrome=None):
     print("Starting profile")
     prof = create_pssm(motif)
     print(prof)
-    motif = recursive_random(instanceref, motiflength, records, pallindrome)
+    motif = recursive_random(instanceref, motiflength, records, palindrome)
     print("Creating results.pdf")
     motif.weblogo("results.pdf", format="pdf", show_errorbars=False,
         show_ends=False, color_scheme="color_classic")
@@ -40,7 +40,7 @@ def create_pssm(instances):
     return matrix.PositionSpecificScoringMatrix(alphabet=nucleotides,values=profile)
 
 
-def recursive_random(instances, motiflength, records, pallindrome=False):
+def recursive_random(instances, motiflength, records, palindrome=False):
     old_total = check_solution(instances)
 
     for idx, instance in enumerate(instances):
@@ -53,7 +53,7 @@ def recursive_random(instances, motiflength, records, pallindrome=False):
         profile = create_pssm(train_motifs)
 
         leftseqs = [records[instances.index(leave_out)]]
-        new_instances = get_best_matches(leftseqs, profile, motiflength)
+        new_instances = get_best_matches(leftseqs, profile, motiflength, palindrome)
         print("new best instance:")
         for new_instance in new_instances:
             print(new_instance)
@@ -66,14 +66,16 @@ def recursive_random(instances, motiflength, records, pallindrome=False):
     print(profile)
     #     Check if there is no regression, if not continue the recursion else stop the program
     if total < old_total:
-        return recursive_random(instances,motiflength,records, pallindrome)
+        return recursive_random(instances, motiflength, records, palindrome)
     else:
         motif = motifs.create(instances)
         print("Finale Profile")
         print_pseudo(motif)
         print("Consensus sequence")
-        if pallindrome:
+        print("new solution: %d" % total)
+        if palindrome:
             print(motif.consensus + "----" + motif.consensus.reverse_complement())
+            print(jaro_distance(str(motif.consensus), str(motif.consensus.reverse_complement())))
         else:
             print(motif.consensus)
         return motif
@@ -88,17 +90,20 @@ def print_pseudo(motif):
         counts[nct] = tuple(tup)
     print(counts)
 
-def get_best_matches(leftseq, profile, motif_length):
+
+def get_best_matches(leftseq, profile, motif_length, palindrome):
     best_matches = list()
     for seq in leftseq:
         best_score = 999
         best_match = ""
         for i in range(len(seq) - 1 - motif_length):
             dnaseq = Seq.Seq(str(seq.seq)[i:i + motif_length])
-            score = profile.calculate(dnaseq)
-            if (score < best_score):
-                best_score = score
-                best_match = dnaseq
+            rev_compl = dnaseq.reverse_complement()
+            if jaro_distance(str(dnaseq), str(rev_compl)) > palindrome:
+                score = profile.calculate(dnaseq)
+                if (score < best_score):
+                    best_score = score
+                    best_match = dnaseq
         best_matches.append(best_match)
     return best_matches
 
@@ -111,28 +116,28 @@ def check_solution(instances):
     return sum(old_scores)
 
 
-def get_random_instances(records, motiflength, pallindrome=None):
+def get_random_instances(records, motiflength, palindrome=None):
     instances = motifs.Instances()
     for record in records:
-        if pallindrome:
+        """if palindrome:
             found = False
             while not found:
                 pos = random.randint(0, len(record.seq) - motiflength)
                 seq = record.seq[pos:pos + motiflength]
                 rev_compl = seq.reverse_complement()
-                if SequenceMatcher(None, seq, rev_compl).ratio() > pallindrome:
+                if jaro_distance(seq, rev_compl) > palindrome:
                     instances.append(seq)
                     found = True
-        else:
-            pos = random.randint(0, len(record.seq) - motiflength)
-            seq = record.seq[pos:pos + motiflength]
-            instances.append(seq)
+        else:"""
+        pos = random.randint(0, len(record.seq) - motiflength)
+        seq = record.seq[pos:pos + motiflength]
+        instances.append(seq)
     return instances
 
 def usage():
     print("usage: sampler.py [option] [filename] [motiflength]")
     print("Options:")
-    print("\t -p [float] --pallindrome [float]\n\t\tTry to find pallindromic motif with ratio higher as [float]")
+    print("\t -p [float] --palindrome [float]\n\t\tTry to find palindromic motif with ratio higher as [float]")
     exit(0)
 
 if __name__ == "__main__":
@@ -144,7 +149,7 @@ if __name__ == "__main__":
     else:
         try:
             if len(sys.argv) > 3:
-                if sys.argv[1] in pallindromic:
+                if sys.argv[1] in palindromic:
                     pal = float(sys.argv[2])
                     filename = sys.argv[3]
                     motiflength = int(sys.argv[4])
@@ -153,4 +158,4 @@ if __name__ == "__main__":
                 motiflength = int(sys.argv[2])
         except Exception as e:
             usage()
-    main(filename, motiflength, pallindrome=pal)
+    main(filename, motiflength, palindrome=pal)
