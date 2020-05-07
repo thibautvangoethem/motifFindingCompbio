@@ -104,6 +104,8 @@ def get_best_matches(leftseq, profile, motif_length, palindrome):
                 if (score < best_score):
                     best_score = score
                     best_match = dnaseq
+        if best_match == "":
+            exit("No sequence found with a high enough palindromic ratio, try lowering it")
         best_matches.append(best_match)
     return best_matches
 
@@ -138,6 +140,7 @@ def usage():
     print("usage: sampler.py [option] [filename] [motiflength]")
     print("Options:")
     print("\t -p [float] --palindrome [float]\n\t\tTry to find palindromic motif with ratio higher as [float]")
+    print("\t\tRatio is defined as the jaro distance between a sequence and its reverse complement")
     exit(0)
 
 if __name__ == "__main__":
