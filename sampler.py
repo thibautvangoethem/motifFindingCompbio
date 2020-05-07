@@ -36,7 +36,7 @@ def main(filename, motiflength, palindrome=None):
 
 def create_pssm(instances):
     profile = instances.counts.normalize(pseudocounts=1)
-    Backgroundvector=background(filename) #Creert een vector met de relatieve frequentie van elke letter
+    Backgroundvector=background("Controledata.fsa") #Creert een vector met de relatieve frequentie van elke letter
 
     dumj=0 # Ik weet niet hoe ik anders over Backgroundvector moet lopen :/
     for nct in nucleotides:
@@ -203,10 +203,10 @@ def usage():
 if __name__ == "__main__":
     Controldata = create_control_data(150, 'TATTAACCA', 15,0)
     pal = False
-    for i in range(len(Controldata)):
-        print(Controldata[i].seq) #Geeft alle gebruikte strings weer
+    # for i in range(len(Controldata)):
+    #     print(Controldata[i].seq) #Geeft alle gebruikte strings weer
 
-    filename = "Controledata.fsa"
+    filename = ""
 
     motiflength = 9
 
