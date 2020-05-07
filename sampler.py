@@ -3,6 +3,7 @@ import sys
 
 from Bio import SeqIO, motifs, Seq
 from Bio.motifs import thresholds, matrix
+from jellyfish import jaro_distance
 import math
 import random
 import copy
@@ -12,29 +13,25 @@ from Bio.SeqRecord import SeqRecord
 
 nucleotides = ['A', 'C', 'G', 'T']
 random.seed()
+palindromic = ["-p", "--palindrome"]
 
 
-def main(filename, motiflength):
-    for i in range(10): #Voer alles 10 keer uit
-        # read in file
-        records = list(SeqIO.parse(filename, "fasta"))
-        # creat random instances of given motif size
-
-        instanceref = get_random_instances(records, motiflength)
-        print("found %d sequences" % len(instanceref))
-        print("Got random instances:")
-        motif = motifs.create(instanceref)
-        print(motif)
-        print("Starting profile")
-        prof = create_pssm(motif)
-        print(prof)
-        motif = recursive_random(instanceref, motiflength, records)
-        print("Creating results.pdf")
-        motif.weblogo("results"+str(i)+".pdf", format="pdf", show_errorbars=False,
-            show_ends=False, color_scheme="color_classic") #Elke pdf heeft een andere naam
-
-
-
+def main(filename, motiflength, palindrome=None):
+    # read in file
+    records = list(SeqIO.parse(filename, "fasta"))
+    # creat random instances of given motif size
+    instanceref = get_random_instances(records, motiflength, palindrome)
+    print("found %d sequences" % len(instanceref))
+    print("Got random instances:")
+    motif = motifs.create(instanceref)
+    print(motif)
+    print("Starting profile")
+    prof = create_pssm(motif)
+    print(prof)
+    motif = recursive_random(instanceref, motiflength, records, palindrome)
+    print("Creating results.pdf")
+    motif.weblogo("results.pdf", format="pdf", show_errorbars=False,
+        show_ends=False, color_scheme="color_classic")
 
 
 def create_pssm(instances):
@@ -53,7 +50,7 @@ def create_pssm(instances):
     return matrix.PositionSpecificScoringMatrix(alphabet=nucleotides,values=profile)
 
 
-def recursive_random(instances, motiflength, records):
+def recursive_random(instances, motiflength, records, palindrome=False):
     old_total = check_solution(instances)
 
     for idx, instance in enumerate(instances):
@@ -66,7 +63,7 @@ def recursive_random(instances, motiflength, records):
         profile = create_pssm(train_motifs)
 
         leftseqs = [records[instances.index(leave_out)]]
-        new_instances = get_best_matches(leftseqs, profile, motiflength)
+        new_instances = get_best_matches(leftseqs, profile, motiflength, palindrome)
         print("new best instance:")
         for new_instance in new_instances:
             print(new_instance)
@@ -79,13 +76,18 @@ def recursive_random(instances, motiflength, records):
     print(profile)
     #     Check if there is no regression, if not continue the recursion else stop the program
     if total < old_total:
-        return recursive_random(instances,motiflength,records)
+        return recursive_random(instances, motiflength, records, palindrome)
     else:
         motif = motifs.create(instances)
         print("Finale Profile")
         print_pseudo(motif)
         print("Consensus sequence")
-        print(motif.consensus)
+        print("new solution: %d" % total)
+        if palindrome:
+            print(motif.consensus + "----" + motif.consensus.reverse_complement())
+            print(jaro_distance(str(motif.consensus), str(motif.consensus.reverse_complement())))
+        else:
+            print(motif.consensus)
         return motif
 
 
@@ -99,17 +101,21 @@ def print_pseudo(motif):
     print(counts)
 
 
-def get_best_matches(leftseq, profile, motif_length):
+def get_best_matches(leftseq, profile, motif_length, palindrome):
     best_matches = list()
     for seq in leftseq:
         best_score = 999
         best_match = ""
         for i in range(len(seq) - 1 - motif_length):
             dnaseq = Seq.Seq(str(seq.seq)[i:i + motif_length])
-            score = profile.calculate(dnaseq)
-            if (score < best_score):
-                best_score = score
-                best_match = dnaseq
+            rev_compl = dnaseq.reverse_complement()
+            if jaro_distance(str(dnaseq), str(rev_compl)) > palindrome:
+                score = profile.calculate(dnaseq)
+                if (score < best_score):
+                    best_score = score
+                    best_match = dnaseq
+        if best_match == "":
+            exit("No sequence found with a high enough palindromic ratio, try lowering it")
         best_matches.append(best_match)
     return best_matches
 
@@ -122,13 +128,23 @@ def check_solution(instances):
     return sum(old_scores)
 
 
-def get_random_instances(records, motiflength):
+def get_random_instances(records, motiflength, palindrome=None):
     instances = motifs.Instances()
     for record in records:
+        """if palindrome:
+            found = False
+            while not found:
+                pos = random.randint(0, len(record.seq) - motiflength)
+                seq = record.seq[pos:pos + motiflength]
+                rev_compl = seq.reverse_complement()
+                if jaro_distance(seq, rev_compl) > palindrome:
+                    instances.append(seq)
+                    found = True
+        else:"""
         pos = random.randint(0, len(record.seq) - motiflength)
-        instances.append(record.seq[pos:pos + motiflength])
+        seq = record.seq[pos:pos + motiflength]
+        instances.append(seq)
     return instances
-
 
 #Een functie die zelf een motief genereert in een achtergrond
 def create_control_data(Stringlength=70,Motif='TATTAA',amountofstrings=8,Errorpercentage=0):
@@ -177,9 +193,16 @@ def background(filename):
 
     return factor_vector
 
+def usage():
+    print("usage: sampler.py [option] [filename] [motiflength]")
+    print("Options:")
+    print("\t -p [float] --palindrome [float]\n\t\tTry to find palindromic motif with ratio higher as [float]")
+    print("\t\tRatio is defined as the jaro distance between a sequence and its reverse complement")
+    exit(0)
+
 if __name__ == "__main__":
     Controldata = create_control_data(150, 'TATTAACCA', 15,0)
-
+    pal = False
     for i in range(len(Controldata)):
         print(Controldata[i].seq) #Geeft alle gebruikte strings weer
 
@@ -187,16 +210,21 @@ if __name__ == "__main__":
 
     motiflength = 9
 
-    if len(sys.argv) != 3:
-        print("usage: sampler.py [filename] [motiflength]")
+    if len(sys.argv) < 3:
+        usage()
     else:
         try:
-            filename = sys.argv[1]
-            motiflength = int(sys.argv[2])
-        except:
-            print("usage: sampler.py [filename] [motiflength]")
-
-    main(filename, motiflength)
+            if len(sys.argv) > 3:
+                if sys.argv[1] in palindromic:
+                    pal = float(sys.argv[2])
+                    filename = sys.argv[3]
+                    motiflength = int(sys.argv[4])
+            else:
+                filename = sys.argv[1]
+                motiflength = int(sys.argv[2])
+        except Exception as e:
+            usage()
+    main(filename, motiflength, palindrome=pal)
 
 
 
