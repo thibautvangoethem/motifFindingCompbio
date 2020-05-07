@@ -13,7 +13,7 @@ from Bio.SeqRecord import SeqRecord
 nucleotides = ['A', 'C', 'G', 'T']
 random.seed()
 palindromic_arg = ["-p", "--palindrome"]
-multi_part_motif_arg = ["-g", "--maxgap", "--gap"]
+multi_part_motif_arg = ["-g", "--maxgap"]
 background_arg = ["-d", "--distribution"]
 batch_arg = ["-b", "--batch"]
 
@@ -41,6 +41,12 @@ def main(filename, motiflength):
 
 
 def create_pssm(instances):
+    """
+    This function creates the position scoring matrix
+    this matrix will be used to get the best matching motif furtgher in the sampler
+    :param instances: the sequence instances
+    :return: a filed in scoring matrix
+    """
     profile = instances.counts.normalize(pseudocounts=1)
     Backgroundvector = background("Controledata.fsa")  # Creert een vector met de relatieve frequentie van elke letter
 
@@ -48,15 +54,25 @@ def create_pssm(instances):
     for nct in nucleotides:
         tup = []
         for i in range(len(profile[nct])):
-            # Deel door het relevante gewicht van backgroundvector, als er meer A's zijn delen we door een getal groter dan 1
-            # Hierdoor daalt het gewicht van een A.
-            tup.append(-math.log((profile[nct][i]) / Backgroundvector[dumj]))
+            if(Config.non_uniform_distribution):
+                # Deel door het relevante gewicht van backgroundvector, als er meer A's zijn delen we door een getal groter dan 1
+                # Hierdoor daalt het gewicht van een A.
+                tup.append(-math.log((profile[nct][i]) / Backgroundvector[dumj]))
+            else:
+                tup.append(-math.log((profile[nct][i])))
         profile[nct] = tuple(tup)
         dumj = dumj + 1
     return matrix.PositionSpecificScoringMatrix(alphabet=nucleotides, values=profile)
 
 
 def recursive_random(instances, motiflength, records):
+    """
+    The main function in de sampler, this is the recursive alogorithm that will keep throwing away sequences and getting a new bets match until there is regression
+    :param instances: the first motif attempts
+    :param motiflength: the motif length you are searching for
+    :param records: the original sequences
+    :return:
+    """
     global gapSize
     old_total = check_solution(instances)
 
@@ -108,6 +124,11 @@ def recursive_random(instances, motiflength, records):
 
 
 def print_pseudo(motif):
+    """
+    help functiont that prints a motif
+    :param motif:
+    :return:
+    """
     counts = copy.deepcopy(motif.counts)
     for nct in nucleotides:
         tup = []
@@ -118,6 +139,14 @@ def print_pseudo(motif):
 
 
 def get_best_matches(leftseq, profile, motif_length, idx):
+    """
+    Function that based on a given pssm gets the best matching motif for certain sequences
+    :param leftseq: the sequences taht were taken out and need replacing here
+    :param profile: the pssm
+    :param motif_length: the motif lenght we are searching for
+    :param idx: the idxes of the left out seqeunces
+    :return:
+    """
     global gapSize
     global gapList
     best_matches_scores = list()
@@ -160,6 +189,11 @@ def get_best_matches(leftseq, profile, motif_length, idx):
 
 
 def check_solution(instances):
+    """
+    gets the score of a motif list
+    :param instances: the motifs
+    :return: a score, the lower this score the beter
+    """
     pssm = create_pssm(motifs.create(instances))
     old_scores = list()
     for instance in instances:
@@ -168,6 +202,12 @@ def check_solution(instances):
 
 
 def get_random_instances(records, motiflength):
+    """
+    Function taht gets some fully random motifs out of a list of sequences
+    :param records:
+    :param motiflength:
+    :return:
+    """
     # get a random gapsize to start, the gap will be refined after multiple iterations of the algorithm
     global gapSize
     gapSize = random.randint(0, Config.max_gapsize + 1)
@@ -188,8 +228,16 @@ def get_random_instances(records, motiflength):
     return instances
 
 
-# Een functie die zelf een motief genereert in een achtergrond
-def create_control_data(Stringlength=70, Motif='TATTAA', amountofstrings=8, Errorpercentage=0):
+def create_control_data(filename,Stringlength=70, Motif='TATTAA', amountofstrings=8, Errorpercentage=0):
+    """
+    Test function used to generate test motifs with given background
+    :param filename:
+    :param Stringlength:
+    :param Motif:
+    :param amountofstrings:
+    :param Errorpercentage:
+    :return:
+    """
     Recordlist = amountofstrings * [0]  # Een lijst met seqrecord objecten
 
     Motif = list(Motif)  # Makkelijker te manipuleren dan strings
@@ -218,6 +266,11 @@ def create_control_data(Stringlength=70, Motif='TATTAA', amountofstrings=8, Erro
 
 
 def background(filename):
+    """
+    Function taht calculates the background of a fsa files
+    :param filename: the fsa file
+    :return: a list of background factors
+    """
     records = list(SeqIO.parse(filename, "fasta"))
     Totalsequence = Seq.Seq('')
 
@@ -237,9 +290,16 @@ def background(filename):
 
 
 def usage():
+    """
+    prints usage info about the program
+    :return: None
+    """
     print("usage: sampler.py [option] [filename] [motiflength]")
     print("Options:")
     print("\t -p [float] --palindrome [float]\n\t\tTry to find palindromic motif with ratio higher as [float]")
+    print("\t -g [integer] --maxgap [integer]\n\t\tAlso allow motifs with 1 gap that has a maximum size of [integer]")
+    print("\t -d  --distribution \n\t\tTurn on the calculations for non uniform distributions, here the given sequence will be weighted according to the amount each base pair occurs")
+    print("\t -b [integer] --batch [integer]\n\t\tRun the sampler [integer] amount of times with the same settings")
     print("\t\tRatio is defined as the jaro distance between a sequence and its reverse complement")
     exit(0)
 
@@ -254,6 +314,8 @@ if __name__ == "__main__":
 
     motiflength = 0
 
+    # This is the argument parser
+    # If les then 3 arguments are present or faulty arguments are given then the usage function will be called
     if len(sys.argv) < 3:
         usage()
     else:
@@ -272,6 +334,7 @@ if __name__ == "__main__":
                     if arg in background_arg:
                         Config.non_uniform_distribution = True
                     if arg in batch_arg:
+                        # + 4 as we start counting at idx 3 and need current index + 1
                         Config.batch = int(sys.argv[idx + 4])
             else:
                 filename = sys.argv[1]
