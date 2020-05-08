@@ -166,7 +166,7 @@ def get_best_matches(leftseq, profile, motif_length, idx):
                     dnaseq = Seq.Seq(
                         str(seq.seq)[i:i + j] + str(seq.seq)[i + j + loop_gapsize:i + motif_length + loop_gapsize])
                     rev_compl = dnaseq.reverse_complement()
-                    if Config.palindrome_enable or jaro_distance(str(dnaseq), str(rev_compl)) > Config.palindrome:
+                    if Config.palindrome_enable and jaro_distance(str(dnaseq), str(rev_compl)) > Config.palindrome:
                         score = profile.calculate(dnaseq)
                         if (score < best_score):
                             best_score = score
