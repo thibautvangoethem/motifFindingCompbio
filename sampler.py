@@ -1,5 +1,6 @@
 import sys
 
+import sys, os
 from Bio import SeqIO, motifs, Seq
 from Bio.motifs import thresholds, matrix
 from jellyfish import jaro_distance
@@ -16,12 +17,14 @@ palindromic_arg = ["-p", "--palindrome"]
 multi_part_motif_arg = ["-g", "--maxgap"]
 background_arg = ["-d", "--distribution"]
 batch_arg = ["-b", "--batch"]
+verbose_arg=["-v", "--verboseo "]
 
 gapList = {}
 gapSize = 0
 
 
 def main(filename, motiflength):
+    motif_list=list()
     for batch_counter in range(Config.batch):
         # read in file
         records = list(SeqIO.parse(filename, "fasta"))
@@ -35,9 +38,29 @@ def main(filename, motiflength):
         prof = create_pssm(motif)
         print(prof)
         motif = recursive_random(instanceref, motiflength, records)
-        print("Creating results.pdf")
-        motif.weblogo("results%s.pdf"%(str(batch_counter)), format="pdf", show_errorbars=False,
-                      show_ends=False, color_scheme="color_classic")
+        motif_list.append(motif)
+    # getting the best motif
+    best=None
+    for motif in motif_list:
+        if(best==None or motif[1]>best[1] ):
+            best=motif
+    # printing the result
+    # enable loggin for this part
+    sys.stdout = sys.__stdout__
+    print("Finale Profile")
+    print_pseudo(best[0])
+    print("Consensus sequence")
+    if(Config.max_gapsize>0):
+        print("gapsize: " + str(best[2]))
+    print("new solution: %d" % best[1])
+    if Config.palindrome_enable:
+        print(best[0].consensus + "----" + best[0].consensus.reverse_complement())
+        print(jaro_distance(str(best[0].consensus), str(best[0].consensus.reverse_complement())))
+    else:
+        print(best[0].consensus)
+    print("Creating results.pdf")
+    best[0].weblogo("results.pdf", format="pdf", show_errorbars=False,
+                  show_ends=False, color_scheme="color_classic")
 
 
 def create_pssm(instances):
@@ -110,17 +133,7 @@ def recursive_random(instances, motiflength, records):
         return recursive_random(instances, motiflength, records)
     else:
         motif = motifs.create(instances)
-        print("Finale Profile")
-        print_pseudo(motif)
-        print("Consensus sequence")
-        print("gapsize: " + str(gapSize))
-        print("new solution: %d" % total)
-        if Config.palindrome_enable:
-            print(motif.consensus + "----" + motif.consensus.reverse_complement())
-            print(jaro_distance(str(motif.consensus), str(motif.consensus.reverse_complement())))
-        else:
-            print(motif.consensus)
-        return motif
+        return (motif,total,gapSize)
 
 
 def print_pseudo(motif):
@@ -312,8 +325,11 @@ def usage():
 
 
 if __name__ == "__main__":
-    Controldata = create_control_data(150, 'TATTAACCA', 15, 0)
-    pal = False
+    # default disable print
+    sys.stdout = open(os.devnull, 'w')
+
+    # Controldata = create_control_data(150, 'TATTAACCA', 15, 0)
+    # pal = False
     # for i in range(len(Controldata)):
     #     print(Controldata[i].seq) #Geeft alle gebruikte strings weer
 
@@ -343,6 +359,8 @@ if __name__ == "__main__":
                     if arg in batch_arg:
                         # + 4 as we start counting at idx 3 and need current index + 1
                         Config.batch = int(sys.argv[idx + 4])
+                    if arg in verbose_arg:
+                        sys.stdout = sys.__stdout__
             else:
                 filename = sys.argv[1]
                 motiflength = int(sys.argv[2])
