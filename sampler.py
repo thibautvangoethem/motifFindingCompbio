@@ -154,7 +154,7 @@ def print_pseudo(motif):
 def get_best_matches(leftseq, profile, motif_length, idx):
     """
     Function that based on a given pssm gets the best matching motif for certain sequences
-    :param leftseq: the sequences taht were taken out and need replacing here
+    :param leftseq: the sequences that were taken out and need replacing here
     :param profile: the pssm
     :param motif_length: the motif lenght we are searching for
     :param idx: the idxes of the left out seqeunces
@@ -212,7 +212,7 @@ def check_solution(instances):
     """
     gets the score of a motif list
     :param instances: the motifs
-    :return: a score, the lower this score the beter
+    :return: a score, the lower this score the better
     """
     pssm = create_pssm(motifs.create(instances))
     old_scores = list()
@@ -223,7 +223,7 @@ def check_solution(instances):
 
 def get_random_instances(records, motiflength):
     """
-    Function taht gets some fully random motifs out of a list of sequences
+    Function that gets some fully random motifs out of a list of sequences
     :param records:
     :param motiflength:
     :return:
@@ -314,6 +314,7 @@ def usage():
     prints usage info about the program
     :return: None
     """
+    sys.stdout = sys.__stdout__
     print("usage: sampler.py [option] [filename] [motiflength]")
     print("Options:")
     print("\t -p [float] --palindrome [float]\n\t\tTry to find palindromic motif with ratio higher as [float]")
@@ -330,16 +331,17 @@ if __name__ == "__main__":
 
     # Controldata = create_control_data(150, 'TATTAACCA', 15, 0)
     # pal = False
-    # for i in range(len(Controldata)):
-    #     print(Controldata[i].seq) #Geeft alle gebruikte strings weer
+
 
     filename = ""
 
     motiflength = 0
 
+
+
     # This is the argument parser
     # If les then 3 arguments are present or faulty arguments are given then the usage function will be called
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 2:
         usage()
     else:
         try:
