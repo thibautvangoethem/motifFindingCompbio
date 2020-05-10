@@ -103,7 +103,7 @@ def recursive_random(instances, motiflength, records):
         train_instances = copy.deepcopy(instances)
         leave_out = random.choice(train_instances)
         seq_index = instances.index(leave_out)
-        if (gapList[seq_index] == 0 or gapList[seq_index] == 8):
+        if (Config.max_gapsize==0 or (gapList[seq_index] == 0 or gapList[seq_index] == 8)):
             print("Leaving out %s" % leave_out)
         else:
             print("Leaving out %s" % leave_out[0:gapList[seq_index]] + "-" + leave_out[gapList[seq_index]:])
@@ -116,7 +116,7 @@ def recursive_random(instances, motiflength, records):
         new_instances = get_best_matches(leftseqs, profile, motiflength, seq_index)
         print("new best instance:")
         for new_instance in new_instances:
-            if (gapList[seq_index] == 0 or gapList[seq_index] == 8):
+            if (Config.max_gapsize==0 or ( gapList[seq_index] == 0 or gapList[seq_index] == 8)):
                 print(new_instance)
             else:
                 print("gapsize: " + str(gapSize))
