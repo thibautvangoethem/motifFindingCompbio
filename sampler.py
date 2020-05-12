@@ -8,6 +8,7 @@ import math
 import random
 import copy
 from config import Config
+import matplotlib.pyplot as plt
 
 from Bio.SeqRecord import SeqRecord
 
@@ -17,40 +18,67 @@ palindromic_arg = ["-p", "--palindrome"]
 multi_part_motif_arg = ["-g", "--maxgap"]
 background_arg = ["-d", "--distribution"]
 batch_arg = ["-b", "--batch"]
-verbose_arg=["-v", "--verboseo "]
+verbose_arg = ["-v", "--verboseo "]
 
 gapList = {}
 gapSize = 0
 
 
 def main(filename, motiflength):
-    motif_list=list()
-    for batch_counter in range(Config.batch):
-        # read in file
-        records = list(SeqIO.parse(filename, "fasta"))
-        # creat random instances of given motif size
-        instanceref = get_random_instances(records, motiflength)
-        print("found %d sequences" % len(instanceref))
-        print("Got random instances:")
-        motif = motifs.create(instanceref)
-        print(motif)
-        print("Starting profile")
-        prof = create_pssm(motif)
-        print(prof)
-        motif = recursive_random(instanceref, motiflength, records)
-        motif_list.append(motif)
-    # getting the best motif
-    best=None
-    for motif in motif_list:
-        if(best==None or motif[1]>best[1] ):
-            best=motif
+
+    Distandvalue=[]
+    Dist=[]
+    for i in range(2,3):
+        sys.argv[4] = i
+
+        sys.stdout = sys.__stdout__
+        print(sys.argv)
+        print(background(filename))
+        motif_list = list()
+        sys.stdout = open(os.devnull, 'w')
+
+        for batch_counter in range(sys.argv[4]):
+            # read in file
+            records = list(SeqIO.parse(filename, "fasta"))
+            # creat random instances of given motif size
+            instanceref = get_random_instances(records, motiflength)
+            print("found %d sequences" % len(instanceref))
+            print("Got random instances:")
+            motif = motifs.create(instanceref)
+            print(motif)
+            print("Starting profile")
+            prof = create_pssm(motif)
+            print(prof)
+            motifextra = recursive_random(instanceref, motiflength, records)  # Motifextra is a tuple of Motif, score and gaplength
+
+            motif_list.append(motifextra)
+        # getting the best motif
+        best = None
+        enhance(motif_list)
+        for motif in motif_list:
+            if (best == None or motif[1] < best[1]): #The lower the score the better
+                best = motif
+
+        jarodist=jaro_distance(str(best[0].consensus), 'TATTAACA')
+        Dist.append(jarodist)
+        Distandvalue.append([jarodist,best[0].consensus])
+        sys.stdout = sys.__stdout__
+        print(best[0].consensus)
+        print(jarodist)
+        sys.stdout = open(os.devnull, 'w')
+
     # printing the result
     # enable loggin for this part
     sys.stdout = sys.__stdout__
+    print(Distandvalue)
+
+    plt.plot(range(1,len(Dist)+1),Dist,'ro')
+    plt.show()
+
     print("Finale Profile")
     print_pseudo(best[0])
     print("Consensus sequence")
-    if(Config.max_gapsize>0):
+    if (Config.max_gapsize > 0):
         print("gapsize: " + str(best[2]))
     print("new solution: %d" % best[1])
     if Config.palindrome_enable:
@@ -58,9 +86,11 @@ def main(filename, motiflength):
         print(jaro_distance(str(best[0].consensus), str(best[0].consensus.reverse_complement())))
     else:
         print(best[0].consensus)
+
+
     print("Creating results.pdf")
     best[0].weblogo("results.pdf", format="pdf", show_errorbars=False,
-                  show_ends=False, color_scheme="color_classic")
+                    show_ends=False, color_scheme="color_classic")
 
 
 def create_pssm(instances):
@@ -70,6 +100,7 @@ def create_pssm(instances):
     :param instances: the sequence instances
     :return: a filed in scoring matrix
     """
+    a=1
     profile = instances.counts.normalize(pseudocounts=1)
     Backgroundvector = background("Controledata.fsa")  # Creert een vector met de relatieve frequentie van elke letter
 
@@ -77,7 +108,7 @@ def create_pssm(instances):
     for nct in nucleotides:
         tup = []
         for i in range(len(profile[nct])):
-            if(Config.non_uniform_distribution):
+            if (Config.non_uniform_distribution):
                 # Deel door het relevante gewicht van backgroundvector, als er meer A's zijn delen we door een getal groter dan 1
                 # Hierdoor daalt het gewicht van een A.
                 tup.append(-math.log((profile[nct][i]) / Backgroundvector[dumj]))
@@ -133,7 +164,7 @@ def recursive_random(instances, motiflength, records):
         return recursive_random(instances, motiflength, records)
     else:
         motif = motifs.create(instances)
-        return (motif,total,gapSize)
+        return (motif, total, gapSize)
 
 
 def print_pseudo(motif):
@@ -248,15 +279,15 @@ def get_random_instances(records, motiflength):
     return instances
 
 
-def create_control_data(filename,Stringlength=70, Motif='TATTAA', amountofstrings=8, Errorpercentage=0):
+def create_control_data(filenam, Stringlength=70, amountofstrings=8, Motif='TATTAA', Errorpercentage=0):
     """
     Test function used to generate test motifs with given background
-    :param filename:
-    :param Stringlength:
-    :param Motif:
-    :param amountofstrings:
-    :param Errorpercentage:
-    :return:
+    :param filenam: The filename where the data is written to
+    :param Stringlength: The length of the DNA strands
+    :param Motif: The imposed motif
+    :param amountofstrings: How many DNA strands there are
+    :param Errorpercentage: How many motifs contain a mutation
+    :return: None
     """
     Recordlist = amountofstrings * [0]  # Een lijst met seqrecord objecten
 
@@ -268,7 +299,7 @@ def create_control_data(filename,Stringlength=70, Motif='TATTAA', amountofstring
         Background = Background[0:Stringlength]  # Zorgt ervoor dat niet alle strings 4*n lang moeten zijn
         beginpoint = random.randint(0, Stringlength - len(Motif))  # Willekeurige locatie voor het begin van het motief
         Motif_mutated = Motif
-        if random.random() < Errorpercentage / 100 * 1.25:  # Kan muteren naar dezelfde letter daarom 25 % meer kans dan aangegeven
+        if random.random() < Errorpercentage / 100:  # Kan muteren naar dezelfde letter
 
             Motif_mutated[random.randint(0, len(Motif) - 1)] = random.choice(
                 nucleotides)  # Kan muteren naar dezelfde letter
@@ -280,14 +311,13 @@ def create_control_data(filename,Stringlength=70, Motif='TATTAA', amountofstring
         Recordlist[i] = SeqRecord(Seq.Seq(Promotorstr), id='Fake' + str(i),
                                   description='Part of test data ')  # Creert een SeqRecord object
 
-    with open("Controledata.fsa", "w") as output_handle:
+    with open(filenam, "w") as output_handle:
         SeqIO.write(Recordlist, output_handle, "fasta")  # Schrijft alles naar een FASTA File
-    return Recordlist
 
 
 def background(filename):
     """
-    Function taht calculates the background of a fsa files
+    Function that calculates the background of a fsa files
     :param filename: the fsa file
     :return: a list of background factors
     """
@@ -309,6 +339,10 @@ def background(filename):
     return factor_vector
 
 
+
+
+
+
 def usage():
     """
     prints usage info about the program
@@ -319,53 +353,57 @@ def usage():
     print("Options:")
     print("\t -p [float] --palindrome [float]\n\t\tTry to find palindromic motif with ratio higher as [float]")
     print("\t -g [integer] --maxgap [integer]\n\t\tAlso allow motifs with 1 gap that has a maximum size of [integer]")
-    print("\t -d  --distribution \n\t\tTurn on the calculations for non uniform distributions, here the given sequence will be weighted according to the amount each base pair occurs")
+    print(
+        "\t -d  --distribution \n\t\tTurn on the calculations for non uniform distributions, here the given sequence "
+        "will be weighted according to the amount each base pair occurs")
     print("\t -b [integer] --batch [integer]\n\t\tRun the sampler [integer] amount of times with the same settings")
     print("\t\tRatio is defined as the jaro distance between a sequence and its reverse complement")
     exit(0)
 
 
+
+
 if __name__ == "__main__":
-    # default disable print
-    sys.stdout = open(os.devnull, 'w')
-
-    # Controldata = create_control_data(150, 'TATTAACCA', 15, 0)
-    # pal = False
 
 
-    filename = ""
+        # default disable print
+        create_control_data("testdata.fsa", 150, 40, 'TATTAACA', 15)
+        sys.stdout = open(os.devnull, 'w')
 
-    motiflength = 0
 
+        # pal = False
 
+        filename = ""
 
-    # This is the argument parser
-    # If les then 3 arguments are present or faulty arguments are given then the usage function will be called
-    if len(sys.argv) < 2:
-        usage()
-    else:
-        try:
-            if len(sys.argv) > 3:
-                filename = sys.argv[1]
-                motiflength = int(sys.argv[2])
-                for idx, arg in enumerate(sys.argv[3:]):
-                    if arg in palindromic_arg:
-                        # + 4 as we start counting at idx 3 and need current index + 1
-                        Config.palindrome = float(sys.argv[idx + 4])
-                        Config.palindrome_enable = True
-                    if arg in multi_part_motif_arg:
-                        # + 4 as we start counting at idx 3 and need current index + 1
-                        Config.max_gapsize = int(sys.argv[idx + 4])
-                    if arg in background_arg:
-                        Config.non_uniform_distribution = True
-                    if arg in batch_arg:
-                        # + 4 as we start counting at idx 3 and need current index + 1
-                        Config.batch = int(sys.argv[idx + 4])
-                    if arg in verbose_arg:
-                        sys.stdout = sys.__stdout__
-            else:
-                filename = sys.argv[1]
-                motiflength = int(sys.argv[2])
-        except Exception as e:
+        motiflength = 0
+
+        # This is the argument parser
+        # If les then 3 arguments are present or faulty arguments are given then the usage function will be called
+        if len(sys.argv) < 2:
             usage()
-    main(filename, motiflength)
+        else:
+            try:
+                if len(sys.argv) > 3:
+                    filename = sys.argv[1]
+                    motiflength = int(sys.argv[2])
+                    for idx, arg in enumerate(sys.argv[3:]):
+                        if arg in palindromic_arg:
+                            # + 4 as we start counting at idx 3 and need current index + 1
+                            Config.palindrome = float(sys.argv[idx + 4])
+                            Config.palindrome_enable = True
+                        if arg in multi_part_motif_arg:
+                            # + 4 as we start counting at idx 3 and need current index + 1
+                            Config.max_gapsize = int(sys.argv[idx + 4])
+                        if arg in background_arg:
+                            Config.non_uniform_distribution = True
+                        if arg in batch_arg:
+                            # + 4 as we start counting at idx 3 and need current index + 1
+                            Config.batch = int(sys.argv[idx + 4])
+                        if arg in verbose_arg:
+                            sys.stdout = sys.__stdout__
+                else:
+                    filename = sys.argv[1]
+                    motiflength = int(sys.argv[2])
+            except Exception as e:
+                usage()
+        main(filename, motiflength)
