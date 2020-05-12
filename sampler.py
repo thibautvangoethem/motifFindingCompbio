@@ -25,10 +25,10 @@ gapSize = 0
 
 
 def main(filename, motiflength):
-
+    Scoreval=[]
     Distandvalue=[]
     Dist=[]
-    for i in range(1,15):
+    for i in range(3,4):
         sys.argv[4] = i
 
         sys.stdout = sys.__stdout__
@@ -59,6 +59,8 @@ def main(filename, motiflength):
             if (best == None or motif[1] < best[1]): #The lower the score the better
                 best = motif
 
+        Score=best[0].pssm
+        Scoreval.append(Score)
         jarodist=jaro_distance(str(best[0].consensus), 'TATTAACA')
         Dist.append(jarodist)
         Distandvalue.append([jarodist,best[0].consensus])
@@ -72,7 +74,10 @@ def main(filename, motiflength):
     sys.stdout = sys.__stdout__
     print(Distandvalue)
 
-    plt.plot(range(1,len(Dist)+1),Dist,'ro')
+    #plt.plot(range(1,len(Dist)+1),Dist,'ro')
+    #plt.show()
+
+    plt.plot(Scoreval)
     plt.show()
 
     print("Finale Profile")
@@ -367,7 +372,7 @@ if __name__ == "__main__":
 
 
         # default disable print
-        create_control_data("testdata.fsa", 150, 40, 'TATTAACA', 15)
+        #create_control_data("testdata.fsa", 150, 40, 'TATTAACA', 15)
         sys.stdout = open(os.devnull, 'w')
 
 
