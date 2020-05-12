@@ -61,6 +61,7 @@ def main(filename, motiflength):
 
 
         jarodist=jaro_distance(str(best[0].consensus), 'TATTAACA')
+
         Dist.append(jarodist)
         Distandvalue.append([jarodist,best[0].consensus])
         sys.stdout = sys.__stdout__
