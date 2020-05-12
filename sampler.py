@@ -28,7 +28,7 @@ def main(filename, motiflength):
 
     Distandvalue=[]
     Dist=[]
-    for i in range(2,3):
+    for i in range(1,15):
         sys.argv[4] = i
 
         sys.stdout = sys.__stdout__
@@ -54,7 +54,7 @@ def main(filename, motiflength):
             motif_list.append(motifextra)
         # getting the best motif
         best = None
-        enhance(motif_list)
+
         for motif in motif_list:
             if (best == None or motif[1] < best[1]): #The lower the score the better
                 best = motif
