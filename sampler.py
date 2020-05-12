@@ -25,61 +25,29 @@ gapSize = 0
 
 
 def main(filename, motiflength):
-
-    Distandvalue=[]
-    Dist=[]
-    for i in range(3,4):
-        sys.argv[4] = i
-
-        sys.stdout = sys.__stdout__
-        print(sys.argv)
-        print(background(filename))
-        motif_list = list()
-        sys.stdout = open(os.devnull, 'w')
-
-        for batch_counter in range(sys.argv[4]):
-            # read in file
-            records = list(SeqIO.parse(filename, "fasta"))
-            # creat random instances of given motif size
-            instanceref = get_random_instances(records, motiflength)
-            print("found %d sequences" % len(instanceref))
-            print("Got random instances:")
-            motif = motifs.create(instanceref)
-            print(motif)
-            print("Starting profile")
-            prof = create_pssm(motif)
-            print(prof)
-            motifextra = recursive_random(instanceref, motiflength, records)  # Motifextra is a tuple of Motif, score and gaplength
-
-            motif_list.append(motifextra)
-        # getting the best motif
-        best = None
-
-        for motif in motif_list:
-            if (best == None or motif[1] < best[1]): #The lower the score the better
-                best = motif
-
-
-        jarodist=jaro_distance(str(best[0].consensus), 'TATTAACA')
-
-        Dist.append(jarodist)
-        Distandvalue.append([jarodist,best[0].consensus])
-        sys.stdout = sys.__stdout__
-        print(best[0].consensus)
-        print(jarodist)
-        sys.stdout = open(os.devnull, 'w')
-
+    motif_list = list()
+    for batch_counter in range(Config.batch):
+        # read in file
+        records = list(SeqIO.parse(filename, "fasta"))
+        # creat random instances of given motif size
+        instanceref = get_random_instances(records, motiflength)
+        print("found %d sequences" % len(instanceref))
+        print("Got random instances:")
+        motif = motifs.create(instanceref)
+        print(motif)
+        print("Starting profile")
+        prof = create_pssm(motif)
+        print(prof)
+        motif = recursive_random(instanceref, motiflength, records)
+        motif_list.append(motif)
+    # getting the best motif
+    best = None
+    for motif in motif_list:
+        if (best == None or motif[1] < best[1]):
+            best = motif
     # printing the result
     # enable loggin for this part
     sys.stdout = sys.__stdout__
-    print(Distandvalue)
-
-    #plt.plot(range(1,len(Dist)+1),Dist,'ro')
-    #plt.show()
-
-    plt.plot(Scoreval)
-    plt.show()
-
     print("Finale Profile")
     print_pseudo(best[0])
     print("Consensus sequence")
@@ -91,8 +59,6 @@ def main(filename, motiflength):
         print(jaro_distance(str(best[0].consensus), str(best[0].consensus.reverse_complement())))
     else:
         print(best[0].consensus)
-
-
     print("Creating results.pdf")
     best[0].weblogo("results.pdf", format="pdf", show_errorbars=False,
                     show_ends=False, color_scheme="color_classic")
