@@ -25,7 +25,7 @@ gapSize = 0
 
 
 def main(filename, motiflength):
-    Scoreval=[]
+
     Distandvalue=[]
     Dist=[]
     for i in range(3,4):
@@ -59,8 +59,7 @@ def main(filename, motiflength):
             if (best == None or motif[1] < best[1]): #The lower the score the better
                 best = motif
 
-        Score=best[0].pssm
-        Scoreval.append(Score)
+
         jarodist=jaro_distance(str(best[0].consensus), 'TATTAACA')
         Dist.append(jarodist)
         Distandvalue.append([jarodist,best[0].consensus])
