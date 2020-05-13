@@ -27,7 +27,7 @@ gapList = {}
 gapSize = 0
 
 
-def main(filename, motiflength):
+def main(filename, motiflength, backgroundvector=(0.25, 0.25, 0.25, 0.25)):
     motif_list = list()
     for batch_counter in range(Config.batch):
         # read in file
@@ -41,7 +41,7 @@ def main(filename, motiflength):
         print("Starting profile")
         prof = create_pssm(motif)
         print(prof)
-        motif = recursive_random(instanceref, motiflength, records)
+        motif = recursive_random(instanceref, motiflength, records, backgroundvector)
         motif_list.append(motif)
     # getting the best motif
     best = None
@@ -54,7 +54,7 @@ def main(filename, motiflength):
     print("Finale Profile")
     print_pseudo(best[0])
     print("Consensus sequence")
-    if (Config.max_gapsize > 0):
+    if Config.max_gapsize > 0:
         print("gapsize: " + str(best[2]))
     print("new solution: %d" % best[1])
     if Config.palindrome_enable:
@@ -67,7 +67,7 @@ def main(filename, motiflength):
                     show_ends=False, color_scheme="color_classic")
 
 
-def create_pssm(instances):
+def create_pssm(instances, backgroundvector):
     """
     This function creates the position scoring matrix
     this matrix will be used to get the best matching motif furtgher in the sampler
@@ -76,7 +76,6 @@ def create_pssm(instances):
     """
     a=1
     profile = instances.counts.normalize(pseudocounts=1)
-    Backgroundvector = background("Controledata.fsa")  # Creert een vector met de relatieve frequentie van elke letter
 
     dumj = 0  # Ik weet niet hoe ik anders over Backgroundvector moet lopen :/
     for nct in nucleotides:
@@ -85,7 +84,7 @@ def create_pssm(instances):
             if (Config.non_uniform_distribution):
                 # Deel door het relevante gewicht van backgroundvector, als er meer A's zijn delen we door een getal groter dan 1
                 # Hierdoor daalt het gewicht van een A.
-                tup.append(-math.log((profile[nct][i]) / Backgroundvector[dumj]))
+                tup.append(-math.log((profile[nct][i]) / backgroundvector[dumj]))
             else:
                 tup.append(-math.log((profile[nct][i])))
         profile[nct] = tuple(tup)
@@ -93,7 +92,7 @@ def create_pssm(instances):
     return matrix.PositionSpecificScoringMatrix(alphabet=nucleotides, values=profile)
 
 
-def recursive_random(instances, motiflength, records):
+def recursive_random(instances, motiflength, records, backgroundvector):
     """
     The main function in de sampler, this is the recursive alogorithm that will keep throwing away sequences and getting a new bets match until there is regression
     :param instances: the first motif attempts
@@ -115,7 +114,7 @@ def recursive_random(instances, motiflength, records):
         train_instances.remove(leave_out)
 
         train_motifs = motifs.create(train_instances)
-        profile = create_pssm(train_motifs)
+        profile = create_pssm(train_motifs, backgroundvector)
 
         leftseqs = [records[seq_index]]
         new_instances = get_best_matches(leftseqs, profile, motiflength, seq_index)
@@ -129,13 +128,13 @@ def recursive_random(instances, motiflength, records):
             instances[seq_index] = new_instance
     # printing the result from this iteration
     total = check_solution(instances)
-    profile = create_pssm(motifs.create(instances))
+    profile = create_pssm(motifs.create(instances), backgroundvector)
     print("new solution: %d" % total)
     print("new profile: ")
     print(profile)
     #     Check if there is no regression, if not continue the recursion else stop the program
     if total < old_total:
-        return recursive_random(instances, motiflength, records)
+        return recursive_random(instances, motiflength, records, backgroundvector)
     else:
         motif = motifs.create(instances)
         return (motif, total, gapSize)
@@ -351,6 +350,7 @@ if __name__ == "__main__":
 
         motiflength = 0
 
+
         # This is the argument parser
         # If les then 3 arguments are present or faulty arguments are given then the usage function will be called
         if len(sys.argv) < 2:
@@ -375,6 +375,11 @@ if __name__ == "__main__":
                             Config.batch = int(sys.argv[idx + 4])
                         if arg in verbose_arg:
                             sys.stdout = sys.__stdout__
+                    if Config.non_uniform_distribution:
+                        backgroundvector = background(filename)
+                        main(filename, motiflength, backgroundvector)
+                    else:
+                        main(filename, motiflength)
                 else:
                     filename = sys.argv[1]
                     motiflength = int(sys.argv[2])
