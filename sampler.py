@@ -27,7 +27,7 @@ gapList = {}
 gapSize = 0
 
 
-def main(filename, motiflength, backgroundvector=(0.25, 0.25, 0.25, 0.25)):
+def main(filename, motiflength):
     motif_list = list()
     for batch_counter in range(Config.batch):
         # read in file
@@ -41,7 +41,7 @@ def main(filename, motiflength, backgroundvector=(0.25, 0.25, 0.25, 0.25)):
         print("Starting profile")
         prof = create_pssm(motif)
         print(prof)
-        motif = recursive_random(instanceref, motiflength, records, backgroundvector)
+        motif = recursive_random(instanceref, motiflength, records)
         motif_list.append(motif)
     # getting the best motif
     best = None
@@ -67,7 +67,7 @@ def main(filename, motiflength, backgroundvector=(0.25, 0.25, 0.25, 0.25)):
                     show_ends=False, color_scheme="color_classic")
 
 
-def create_pssm(instances, backgroundvector):
+def create_pssm(instances):
     """
     This function creates the position scoring matrix
     this matrix will be used to get the best matching motif furtgher in the sampler
@@ -84,7 +84,7 @@ def create_pssm(instances, backgroundvector):
             if (Config.non_uniform_distribution):
                 # Deel door het relevante gewicht van backgroundvector, als er meer A's zijn delen we door een getal groter dan 1
                 # Hierdoor daalt het gewicht van een A.
-                tup.append(-math.log((profile[nct][i]) / backgroundvector[dumj]))
+                tup.append(-math.log((profile[nct][i]) / Config.backgroundvector[dumj]))
             else:
                 tup.append(-math.log((profile[nct][i])))
         profile[nct] = tuple(tup)
@@ -92,7 +92,7 @@ def create_pssm(instances, backgroundvector):
     return matrix.PositionSpecificScoringMatrix(alphabet=nucleotides, values=profile)
 
 
-def recursive_random(instances, motiflength, records, backgroundvector):
+def recursive_random(instances, motiflength, records):
     """
     The main function in de sampler, this is the recursive alogorithm that will keep throwing away sequences and getting a new bets match until there is regression
     :param instances: the first motif attempts
@@ -114,7 +114,7 @@ def recursive_random(instances, motiflength, records, backgroundvector):
         train_instances.remove(leave_out)
 
         train_motifs = motifs.create(train_instances)
-        profile = create_pssm(train_motifs, backgroundvector)
+        profile = create_pssm(train_motifs)
 
         leftseqs = [records[seq_index]]
         new_instances = get_best_matches(leftseqs, profile, motiflength, seq_index)
@@ -128,13 +128,13 @@ def recursive_random(instances, motiflength, records, backgroundvector):
             instances[seq_index] = new_instance
     # printing the result from this iteration
     total = check_solution(instances)
-    profile = create_pssm(motifs.create(instances), backgroundvector)
+    profile = create_pssm(motifs.create(instances))
     print("new solution: %d" % total)
     print("new profile: ")
     print(profile)
     #     Check if there is no regression, if not continue the recursion else stop the program
     if total < old_total:
-        return recursive_random(instances, motiflength, records, backgroundvector)
+        return recursive_random(instances, motiflength, records)
     else:
         motif = motifs.create(instances)
         return (motif, total, gapSize)
@@ -325,12 +325,12 @@ def usage():
     print("usage: sampler.py [option] [filename] [motiflength]")
     print("Options:")
     print("\t -p [float] --palindrome [float]\n\t\tTry to find palindromic motif with ratio higher as [float]")
+    print("\t\tRatio is defined as the jaro distance between a sequence and its reverse complement")
     print("\t -g [integer] --maxgap [integer]\n\t\tAlso allow motifs with 1 gap that has a maximum size of [integer]")
     print(
         "\t -d  --distribution \n\t\tTurn on the calculations for non uniform distributions, here the given sequence "
         "will be weighted according to the amount each base pair occurs")
     print("\t -b [integer] --batch [integer]\n\t\tRun the sampler [integer] amount of times with the same settings")
-    print("\t\tRatio is defined as the jaro distance between a sequence and its reverse complement")
     exit(0)
 
 
@@ -370,19 +370,21 @@ if __name__ == "__main__":
                             Config.max_gapsize = int(sys.argv[idx + 4])
                         if arg in background_arg:
                             Config.non_uniform_distribution = True
+                            try:
+                                Config.backgroundvector = list(map(float, sys.argv[idx + 4].strip('[]').split(',')))
+                            except Exception as e:
+                                print(e)
+                                Config.backgroundvector = background(filename)
                         if arg in batch_arg:
                             # + 4 as we start counting at idx 3 and need current index + 1
                             Config.batch = int(sys.argv[idx + 4])
                         if arg in verbose_arg:
                             sys.stdout = sys.__stdout__
-                    if Config.non_uniform_distribution:
-                        backgroundvector = background(filename)
-                        main(filename, motiflength, backgroundvector)
-                    else:
-                        main(filename, motiflength)
                 else:
                     filename = sys.argv[1]
                     motiflength = int(sys.argv[2])
             except Exception as e:
+                print(e)
                 usage()
+        print(Config.backgroundvector)
         main(filename, motiflength)
