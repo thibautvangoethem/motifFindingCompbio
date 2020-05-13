@@ -1,6 +1,8 @@
 import sys
 
 import sys, os
+import warnings
+
 from Bio import SeqIO, motifs, Seq
 from Bio.motifs import thresholds, matrix
 from jellyfish import jaro_distance
@@ -8,9 +10,10 @@ import math
 import random
 import copy
 from config import Config
-import matplotlib.pyplot as plt
 
 from Bio.SeqRecord import SeqRecord
+
+warnings.filterwarnings("ignore")
 
 nucleotides = ['A', 'C', 'G', 'T']
 random.seed()
@@ -18,7 +21,7 @@ palindromic_arg = ["-p", "--palindrome"]
 multi_part_motif_arg = ["-g", "--maxgap"]
 background_arg = ["-d", "--distribution"]
 batch_arg = ["-b", "--batch"]
-verbose_arg = ["-v", "--verboseo "]
+verbose_arg = ["-v", "--verbose"]
 
 gapList = {}
 gapSize = 0
