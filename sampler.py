@@ -328,9 +328,9 @@ def usage():
     print("\t\tRatio is defined as the jaro distance between a sequence and its reverse complement")
     print("\t -g [integer] --maxgap [integer]\n\t\tAlso allow motifs with 1 gap that has a maximum size of [integer]")
     print(
-        "\t -d  --distribution [distribution?]\n\t\tTurn on the calculations for non uniform distributions, here the given sequence "
+        "\t -d [vector?] --distribution [vector?]\n\t\tTurn on the calculations for non uniform distributions, here the given sequence "
         "will be weighted according to the amount each base pair occurs")
-    print("\t\t if [distibution] is defined, use the given list of distribution")
+    print("\t\t if [vector] is defined, use the given list as A C T G background")
     print("\t\t else calculate the distribution from the given file")
     print("\t -b [integer] --batch [integer]\n\t\tRun the sampler [integer] amount of times with the same settings")
     exit(0)
