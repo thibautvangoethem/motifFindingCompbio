@@ -328,8 +328,10 @@ def usage():
     print("\t\tRatio is defined as the jaro distance between a sequence and its reverse complement")
     print("\t -g [integer] --maxgap [integer]\n\t\tAlso allow motifs with 1 gap that has a maximum size of [integer]")
     print(
-        "\t -d  --distribution \n\t\tTurn on the calculations for non uniform distributions, here the given sequence "
+        "\t -d  --distribution [distribution?]\n\t\tTurn on the calculations for non uniform distributions, here the given sequence "
         "will be weighted according to the amount each base pair occurs")
+    print("\t\t if [distibution] is defined, use the given list of distribution")
+    print("\t\t else calculate the distribution from the given file")
     print("\t -b [integer] --batch [integer]\n\t\tRun the sampler [integer] amount of times with the same settings")
     exit(0)
 
@@ -373,7 +375,6 @@ if __name__ == "__main__":
                             try:
                                 Config.backgroundvector = list(map(float, sys.argv[idx + 4].strip('[]').split(',')))
                             except Exception as e:
-                                print(e)
                                 Config.backgroundvector = background(filename)
                         if arg in batch_arg:
                             # + 4 as we start counting at idx 3 and need current index + 1
@@ -386,5 +387,4 @@ if __name__ == "__main__":
             except Exception as e:
                 print(e)
                 usage()
-        print(Config.backgroundvector)
         main(filename, motiflength)
