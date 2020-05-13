@@ -13,6 +13,9 @@ from config import Config
 
 from Bio.SeqRecord import SeqRecord
 
+from multiprocessing.pool import ThreadPool
+from multiprocessing import cpu_count
+
 warnings.filterwarnings("ignore")
 
 nucleotides = ['A', 'C', 'G', 'T']
@@ -27,11 +30,7 @@ gapList = {}
 gapSize = 0
 
 
-def main(filename, motiflength):
-    motif_list = list()
-    for batch_counter in range(Config.batch):
-        # read in file
-        records = list(SeqIO.parse(filename, "fasta"))
+def run(records, motiflength):
         # creat random instances of given motif size
         instanceref = get_random_instances(records, motiflength)
         print("found %d sequences" % len(instanceref))
@@ -42,10 +41,20 @@ def main(filename, motiflength):
         prof = create_pssm(motif)
         print(prof)
         motif = recursive_random(instanceref, motiflength, records)
-        motif_list.append(motif)
+        return motif
+
+def main(filename, motiflength):
+    motif_list = {}
+    records = list(SeqIO.parse(filename, "fasta"))
+    pool = ThreadPool(processes=cpu_count())
+    for batch_counter in range(Config.batch):
+        async_result = pool.apply_async(run, (records, motiflength))
+        motif_list[batch_counter] = async_result.get()
+    pool.close()
+    pool.join()
     # getting the best motif
     best = None
-    for motif in motif_list:
+    for count, motif in motif_list.items():
         if (best == None or motif[1] < best[1]):
             best = motif
     # printing the result
