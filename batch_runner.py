@@ -1,4 +1,5 @@
 from sampler import *
+import matplotlib as plt
 
 # This file is to use for testing/creating graphs only. Dont use it as an actuall sampler because you have less cotrol through parameters here
 batchlist=[1,4]
