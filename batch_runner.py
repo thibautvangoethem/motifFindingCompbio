@@ -12,6 +12,7 @@ batchlist = [1, 4]
 if __name__ == "__main__":
     filename = "data/complex_motif_more.fsa"
     motiflength = 8
+
     # type the motif that you know it will be here
     expected_motif = 'TATTAACA'
     #     everything else will be default  values from the config
