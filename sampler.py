@@ -1,10 +1,9 @@
 import sys
-
-import sys, os
+import os
 import warnings
 
 from Bio import SeqIO, motifs, Seq
-from Bio.motifs import thresholds, matrix
+from Bio.motifs import matrix
 from jellyfish import jaro_distance
 import math
 import random
@@ -31,17 +30,18 @@ gapSize = 0
 
 
 def run(records, motiflength):
-        # creat random instances of given motif size
-        instanceref = get_random_instances(records, motiflength)
-        print("found %d sequences" % len(instanceref))
-        print("Got random instances:")
-        motif = motifs.create(instanceref)
-        print(motif)
-        print("Starting profile")
-        prof = create_pssm(motif)
-        print(prof)
-        motif = recursive_random(instanceref, motiflength, records)
-        return motif
+    # creat random instances of given motif size
+    instanceref = get_random_instances(records, motiflength)
+    print("found %d sequences" % len(instanceref))
+    print("Got random instances:")
+    motif = motifs.create(instanceref)
+    print(motif)
+    print("Starting profile")
+    prof = create_pssm(motif)
+    print(prof)
+    motif = recursive_random(instanceref, motiflength, records)
+    return motif
+
 
 def main(filename, motiflength):
     motif_list = {}
@@ -55,7 +55,7 @@ def main(filename, motiflength):
     # getting the best motif
     best = None
     for count, motif in motif_list.items():
-        if (best == None or motif[1] < best[1]):
+        if best is None or motif[1] < best[1]:
             best = motif
     # printing the result
     # enable loggin for this part
@@ -75,6 +75,8 @@ def main(filename, motiflength):
     best[0].weblogo("results.pdf", format="pdf", show_errorbars=False,
                     show_ends=False, color_scheme="color_classic")
 
+    return best
+
 
 def create_pssm(instances):
     """
@@ -83,16 +85,16 @@ def create_pssm(instances):
     :param instances: the sequence instances
     :return: a filed in scoring matrix
     """
-    a=1
+    a = 1
     profile = instances.counts.normalize(pseudocounts=1)
 
     dumj = 0  # Ik weet niet hoe ik anders over Backgroundvector moet lopen :/
     for nct in nucleotides:
         tup = []
         for i in range(len(profile[nct])):
-            if (Config.non_uniform_distribution):
-                # Deel door het relevante gewicht van backgroundvector, als er meer A's zijn delen we door een getal groter dan 1
-                # Hierdoor daalt het gewicht van een A.
+            if Config.non_uniform_distribution:
+                # Deel door het relevante gewicht van backgroundvector, als er meer A's zijn delen we door een getal
+                # groter dan 1 Hierdoor daalt het gewicht van een A.
                 tup.append(-math.log((profile[nct][i]) / Config.backgroundvector[dumj]))
             else:
                 tup.append(-math.log((profile[nct][i])))
@@ -116,7 +118,7 @@ def recursive_random(instances, motiflength, records):
         train_instances = copy.deepcopy(instances)
         leave_out = random.choice(train_instances)
         seq_index = instances.index(leave_out)
-        if (Config.max_gapsize==0 or (gapList[seq_index] == 0 or gapList[seq_index] == 8)):
+        if Config.max_gapsize == 0 or (gapList[seq_index] == 0 or gapList[seq_index] == 8):
             print("Leaving out %s" % leave_out)
         else:
             print("Leaving out %s" % leave_out[0:gapList[seq_index]] + "-" + leave_out[gapList[seq_index]:])
@@ -129,7 +131,7 @@ def recursive_random(instances, motiflength, records):
         new_instances = get_best_matches(leftseqs, profile, motiflength, seq_index)
         print("new best instance:")
         for new_instance in new_instances:
-            if (Config.max_gapsize==0 or ( gapList[seq_index] == 0 or gapList[seq_index] == 8)):
+            if Config.max_gapsize == 0 or (gapList[seq_index] == 0 or gapList[seq_index] == 8):
                 print(new_instance)
             else:
                 print("gapsize: " + str(gapSize))
@@ -321,10 +323,6 @@ def background(filename):
     return factor_vector
 
 
-
-
-
-
 def usage():
     """
     prints usage info about the program
@@ -345,55 +343,50 @@ def usage():
     exit(0)
 
 
-
-
 if __name__ == "__main__":
 
+    # default disable print
+    # create_control_data("testdata.fsa", 150, 40, 'TATTAACA', 15)
+    sys.stdout = open(os.devnull, 'w')
 
-        # default disable print
-        #create_control_data("testdata.fsa", 150, 40, 'TATTAACA', 15)
-        sys.stdout = open(os.devnull, 'w')
+    # pal = False
 
+    filename = ""
 
-        # pal = False
+    motiflength = 0
 
-        filename = ""
-
-        motiflength = 0
-
-
-        # This is the argument parser
-        # If les then 3 arguments are present or faulty arguments are given then the usage function will be called
-        if len(sys.argv) < 2:
+    # This is the argument parser
+    # If les then 3 arguments are present or faulty arguments are given then the usage function will be called
+    if len(sys.argv) < 2:
+        usage()
+    else:
+        try:
+            if len(sys.argv) > 3:
+                filename = sys.argv[1]
+                motiflength = int(sys.argv[2])
+                for idx, arg in enumerate(sys.argv[3:]):
+                    if arg in palindromic_arg:
+                        # + 4 as we start counting at idx 3 and need current index + 1
+                        Config.palindrome = float(sys.argv[idx + 4])
+                        Config.palindrome_enable = True
+                    if arg in multi_part_motif_arg:
+                        # + 4 as we start counting at idx 3 and need current index + 1
+                        Config.max_gapsize = int(sys.argv[idx + 4])
+                    if arg in background_arg:
+                        Config.non_uniform_distribution = True
+                        try:
+                            Config.backgroundvector = list(map(float, sys.argv[idx + 4].strip('[]').split(',')))
+                        except Exception as e:
+                            Config.backgroundvector = background(filename)
+                    if arg in batch_arg:
+                        # + 4 as we start counting at idx 3 and need current index + 1
+                        Config.batch = int(sys.argv[idx + 4])
+                    if arg in verbose_arg:
+                        sys.stdout = sys.__stdout__
+            else:
+                filename = sys.argv[1]
+                motiflength = int(sys.argv[2])
+        except Exception as e:
+            print(e)
             usage()
-        else:
-            try:
-                if len(sys.argv) > 3:
-                    filename = sys.argv[1]
-                    motiflength = int(sys.argv[2])
-                    for idx, arg in enumerate(sys.argv[3:]):
-                        if arg in palindromic_arg:
-                            # + 4 as we start counting at idx 3 and need current index + 1
-                            Config.palindrome = float(sys.argv[idx + 4])
-                            Config.palindrome_enable = True
-                        if arg in multi_part_motif_arg:
-                            # + 4 as we start counting at idx 3 and need current index + 1
-                            Config.max_gapsize = int(sys.argv[idx + 4])
-                        if arg in background_arg:
-                            Config.non_uniform_distribution = True
-                            try:
-                                Config.backgroundvector = list(map(float, sys.argv[idx + 4].strip('[]').split(',')))
-                            except Exception as e:
-                                Config.backgroundvector = background(filename)
-                        if arg in batch_arg:
-                            # + 4 as we start counting at idx 3 and need current index + 1
-                            Config.batch = int(sys.argv[idx + 4])
-                        if arg in verbose_arg:
-                            sys.stdout = sys.__stdout__
-                else:
-                    filename = sys.argv[1]
-                    motiflength = int(sys.argv[2])
-            except Exception as e:
-                print(e)
-                usage()
-        main(filename, motiflength)
+    main(filename, motiflength)
