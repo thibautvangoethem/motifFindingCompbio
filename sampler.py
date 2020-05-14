@@ -71,9 +71,6 @@ def main(filename, motiflength):
         print(jaro_distance(str(best[0].consensus), str(best[0].consensus.reverse_complement())))
     else:
         print(best[0].consensus)
-    print("Creating results.pdf")
-    best[0].weblogo("results.pdf", format="pdf", show_errorbars=False,
-                    show_ends=False, color_scheme="color_classic")
 
     return best
 
@@ -389,4 +386,7 @@ if __name__ == "__main__":
         except Exception as e:
             print(e)
             usage()
-    main(filename, motiflength)
+    motif = main(filename, motiflength)
+    print("Creating results.pdf")
+    motif[0].weblogo("results.pdf", format="pdf", show_errorbars=False,
+                    show_ends=False, color_scheme="color_classic")
